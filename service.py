@@ -40,7 +40,6 @@ def normalizeString(str):
         'NFKD', unicode(unicode(str, 'utf-8'))
         ).encode('ascii', 'ignore')
 
-
 def search(languages=[], preferredlanguage=None):
     item = {}
     item['temp'] = False
@@ -102,8 +101,14 @@ def search(languages=[], preferredlanguage=None):
         subs = api.get_subtitles(item['tvshow'], item['season'], item['episode'])
 
     langs = {
-        'es-es': 'Castellano', 
-        'es-lat': 'Latino', 
+        'es-es': {
+            'full': 'Castellano',
+            '2let': 'es'
+        },
+        'es-lat': {
+            'full': 'Latino',
+            '2let': 'es'
+        }
     }
 
     print repr(subs)
@@ -120,9 +125,10 @@ def search(languages=[], preferredlanguage=None):
         print(uri)
 
         listitem = xbmcgui.ListItem(
-            label=langs[sub.language],
-            label2=sub.title
-        ) # , thumbnailImage=item['lang'])
+            label=langs[sub.language]['full'],
+            label2=sub.title,
+            thumbnailImage=langs[sub.language]['2let']
+        )
 
         listitem.setProperty("sync",  'false')
         listitem.setProperty("hearing_imp", 'false')
