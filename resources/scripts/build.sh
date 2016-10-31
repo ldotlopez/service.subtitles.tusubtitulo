@@ -14,17 +14,13 @@ then
 fi
 
 # Create virtualenv and install deps
-virtualenv -p python2 "$BUILD/env"
-"$BUILD/env/bin/pip" install --upgrade pip -r "$D/requirements.txt"
+virtualenv -q -p python2 "$BUILD/env"
+"$BUILD/env/bin/pip" install -q --upgrade pip -r "$D/requirements.txt"
 
 # Create destdir
 mkdir -p "$BUILD/$ME"
-mkdir -p "$BUILD/$ME/resources/lib" 
-cp -a \
-	"$BUILD/env/lib/python2.7/site-packages/"{babelfish,bs4,dateutil,guessit,rebulk,tusubtitulo.py} \
-	"$BUILD/$ME/resources/lib"
-find "$BUILD/$ME/resources/lib" -name '*.pyc' -print0 | xargs -0 rm 
 
+# Install base
 cp -a \
 	addon.xml   \
 	icon.png    \
@@ -33,4 +29,16 @@ cp -a \
 	LICENSE.txt \
 	README.xml  \
 	"$BUILD/$ME"
-(cd "$BUILD"; zip -r "$ME.zip" "$ME" )
+
+# Install resource/lib stuff
+mkdir -p "$BUILD/$ME/resources/lib" 
+cp -a \
+	"$BUILD/env/lib/python2.7/site-packages/"{babelfish,bs4,dateutil,guessit,rebulk,tusubtitulo.py} \
+	"$D/resources/lib/legacy.py" \
+	"$BUILD/$ME/resources/lib"
+
+# Cleanup
+find "$BUILD/$ME/resources/lib" -name '*.pyc' -print0 | xargs -0 rm 
+
+# Final package
+(cd "$BUILD"; zip -q -r "$ME.zip" "$ME" )

@@ -28,115 +28,29 @@ sys.path.append(__resource__)
 
 # Mi's
 import urlparse
-import unicodedata  # normalizeString
+import unicodedata  # normalize
 import tusubtitulo
 
+import legacy
 
 __me__ = 'misubtitulo'
 
 
-def normalizeString(str):
-    return unicodedata.normalize(
-        'NFKD', unicode(unicode(str, 'utf-8'))
-        ).encode('ascii', 'ignore')
+#
+# Utils
+#
+
+def log(name, msg):
+    print("{id}.{name}: {msg}".format(id=__scriptid__, name=name, msg=msg))
+
+
+#
+# Plugin actions
+#
 
 def search(languages=[], preferredlanguage=None):
-    item = {}
-    item['temp'] = False
-    item['rar'] = False
-    item['year'] = xbmc.getInfoLabel("VideoPlayer.Year")
-    item['season'] = str(xbmc.getInfoLabel("VideoPlayer.Season"))
-    item['episode'] = str(xbmc.getInfoLabel("VideoPlayer.Episode"))
-    item['tvshow'] = normalizeString(
-        xbmc.getInfoLabel("VideoPlayer.TVshowtitle"))
-    item['title'] = normalizeString(
-        xbmc.getInfoLabel("VideoPlayer.OriginalTitle"))
-    # Full path of a playing file
-    item['file_original_path'] = urllib.unquote(
-        xbmc.Player().getPlayingFile().decode('utf-8'))
-    item['3let_language'] = []
-    item['2let_language'] = []
-
-    for lang in languages:
-        item['3let_language'].append(
-            xbmc.convertLanguage(lang, xbmc.ISO_639_2))
-        item['2let_language'].append(
-            xbmc.convertLanguage(lang, xbmc.ISO_639_1))
-
-    # no original title, get just Title
-    if item['title'] == "":
-        item['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.Title"))
-
-    # Check if season is "Special"
-    if item['episode'].lower().find("s") > -1:
-        item['season'] = "0"
-        item['episode'] = item['episode'][-1:]
-
-    if item['file_original_path'].find("http") > -1:
-        item['temp'] = True
-
-    elif (item['file_original_path'].find("rar://") > -1):
-        item['rar'] = True
-        item['file_original_path'] = os.path.dirname(
-            item['file_original_path'][6:])
-
-    elif (item['file_original_path'].find("stack://") > -1):
-        stackPath = item['file_original_path'].split(" , ")
-        item['file_original_path'] = stackPath[0][8:]
-
-    by_filename = False
-    for f in 'tvshow', 'season', 'episode':
-        if f not in item or not item[f]:
-            by_filename = True
-            break
-
-    api = tusubtitulo.API()
-
-    if by_filename:
-        print repr(os.path.basename(item['file_original_path']))
-        subs = api.get_subtitles_from_filename(os.path.basename(item['file_original_path']))
-    else:
-
-        print(repr((item['tvshow'], item['season'], item['episode'])))
-        subs = api.get_subtitles(item['tvshow'], item['season'], item['episode'])
-
-    langs = {
-        'es-es': {
-            'full': 'Castellano',
-            '2let': 'es'
-        },
-        'es-lat': {
-            'full': 'Latino',
-            '2let': 'es'
-        }
-    }
-
-    print repr(subs)
-    for sub in subs:
-        if sub.language not in langs:
-            print("Discard " + sub.language)
-            continue
-
-        uri = "plugin://%s/?action=download&url=%s&params=%s" % (
-            __scriptid__,
-            sub.url,
-            urllib.quote(json.dumps(sub.params))
-        )
-        print(uri)
-
-        listitem = xbmcgui.ListItem(
-            label=langs[sub.language]['full'],
-            label2=sub.title,
-            thumbnailImage=langs[sub.language]['2let']
-        )
-
-        listitem.setProperty("sync",  'false')
-        listitem.setProperty("hearing_imp", 'false')
-
-        xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=uri, listitem=listitem, isFolder=False)
-    
+    item = legacy.get_file_info()
     # item = {
-    #     '2let_language': ['en', 'es'],
     #     'episode': '6',
     #     'temp': False,
     #     'title': 'The Fetal Kick Catalyst',
@@ -144,9 +58,71 @@ def search(languages=[], preferredlanguage=None):
     #     'year': '',
     #     'rar': False,
     #     'tvshow': 'The Big Bang Theory',
-    #     'file_original_path': u'smb://DLBOX/storage/TV Shows/The Big Bang Theory/Season 10/The Big Bang Theory - 10x06 The Fetal Kick Catalyst.mkv',  # nopep8
-    #     '3let_language': ['eng', 'spa']
+    #     'file_original_path': u'/storage/TV Shows/The Big Bang Theory/Season 10/The Big Bang Theory - 10x06 The Fetal Kick Catalyst.mkv',  # nopep8
     # }
+
+    # Determine if we have all required data for a concrete search
+    by_filename = False
+    for f in ['tvshow', 'season', 'episode']:
+        if f not in item or not item[f]:
+            by_filename = True
+            break
+
+    # Search for subtitles
+    api = tusubtitulo.API()
+    if by_filename:
+        filename = os.path.basename(item['file_original_path'])
+        log(__name__, "Search subtitles for filename: '{filename}'".format(
+            filename=filename))
+        subs = api.get_subtitles_from_filename(filename)
+    else:
+        log(__name__, "Search subtitles for show: {show}, season: {season}, "
+                      "episode: {episode}".format(**item))
+        subs = api.get_subtitles(
+            item['tvshow'], item['season'], item['episode'])
+
+    langs = {
+        'es-es': {
+            'full': 'Castellano',
+            '2let': 'es',
+            'index': 0
+        },
+        'es-lat': {
+            'full': 'Latino',
+            '2let': 'es',
+            'index': 1
+        }
+    }
+
+    log(__name__, "{n} subtitles found".format(n=len(subs)))
+
+    subs = [x for x in subs if x.language in langs]
+    subs = sorted(subs, key=lambda x: langs[x.language]['index'])
+    log(__name__, "{n} subtitles in valid languages".format(n=len(subs)))
+
+    for sub in subs:
+        uri = "plugin://%s/?action=download&url=%s&params=%s" % (
+            __scriptid__,
+            sub.url,
+            urllib.quote(json.dumps(sub.params))
+        )
+        log(__name__, "Reporting subtitle: {url} (params={params}".format(
+            url=sub.url,
+            params=repr(sub.params)
+        ))
+
+        listitem = xbmcgui.ListItem(
+            label=langs[sub.language]['full'],
+            label2=sub.title,
+            thumbnailImage=langs[sub.language]['2let']
+        )
+        listitem.setProperty("sync",  'false')
+        listitem.setProperty("hearing_imp", 'false')
+        xbmcplugin.addDirectoryItem(
+            handle=int(sys.argv[1]), url=uri, listitem=listitem,
+            isFolder=False)
+
+
 
 
 def download(url, params):
