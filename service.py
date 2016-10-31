@@ -94,12 +94,14 @@ def search(languages=[], preferredlanguage=None):
         }
     }
 
+    
     log(__name__, "{n} subtitles found".format(n=len(subs)))
 
     subs = [x for x in subs if x.language in langs]
     subs = sorted(subs, key=lambda x: langs[x.language]['index'])
     log(__name__, "{n} subtitles in valid languages".format(n=len(subs)))
 
+    # Build the menu
     for sub in subs:
         uri = "plugin://%s/?action=download&url=%s&params=%s" % (
             __scriptid__,
@@ -121,8 +123,6 @@ def search(languages=[], preferredlanguage=None):
         xbmcplugin.addDirectoryItem(
             handle=int(sys.argv[1]), url=uri, listitem=listitem,
             isFolder=False)
-
-
 
 
 def download(url, params):
