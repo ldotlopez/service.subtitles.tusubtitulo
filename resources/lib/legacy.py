@@ -58,4 +58,6 @@ def get_file_info():
         stackPath = item['file_original_path'].split(" , ")
         item['file_original_path'] = stackPath[0][8:]
 
+    item['filename'] = path.basename(item['file_original_path'])
+
     return item

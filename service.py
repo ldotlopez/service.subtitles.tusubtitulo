@@ -70,16 +70,24 @@ def search(languages=[], preferredlanguage=None):
 
     # Search for subtitles
     api = tusubtitulo.API()
-    if by_filename:
-        filename = os.path.basename(item['file_original_path'])
-        log(__name__, "Search subtitles for filename: '{filename}'".format(
-            filename=filename))
-        subs = api.get_subtitles_from_filename(filename)
-    else:
-        log(__name__, "Search subtitles for show: {show}, season: {season}, "
-                      "episode: {episode}".format(**item))
-        subs = api.get_subtitles(
-            item['tvshow'], item['season'], item['episode'])
+    try:
+        if by_filename:
+            filename = os.path.basename(item['file_original_path'])
+            log(__name__, "Search subtitles for filename: '{filename}'".format(
+                filename=filename))
+            subs = api.get_subtitles_from_filename(filename)
+        else:
+            log(__name__, "Search subtitles for show: {show}, season: {season}, "
+                          "episode: {episode}".format(
+                            show=item['tvshow'],
+                            season=item['season'],
+                            episode=item['episode'],
+                            ))
+            subs = api.get_subtitles(
+                item['tvshow'], item['season'], item['episode'])
+    except tusubtitulo.ShowNotFoundError:
+        log(__name__, "No subtitles found")
+        return
 
     langs = {
         'es-es': {
@@ -94,7 +102,6 @@ def search(languages=[], preferredlanguage=None):
         }
     }
 
-    
     log(__name__, "{n} subtitles found".format(n=len(subs)))
 
     subs = [x for x in subs if x.language in langs]
@@ -113,16 +120,28 @@ def search(languages=[], preferredlanguage=None):
             params=repr(sub.params)
         ))
 
+        lang_str = langs[sub.language]['full']
+        label_str = "{title} ({version})".format(
+            title=sub.title,
+            version=sub.version if sub.version else 'no version')
+        lang_2let_code = langs[sub.language]['2let']
+        is_sync = sub.version.lower() in item['filename'].lower()
+
         listitem = xbmcgui.ListItem(
-            label=langs[sub.language]['full'],
-            label2=sub.title,
-            thumbnailImage=langs[sub.language]['2let']
+            label=lang_str,
+            label2=label_str,
+            thumbnailImage=lang_2let_code
         )
-        listitem.setProperty("sync",  'false')
         listitem.setProperty("hearing_imp", 'false')
+        listitem.setProperty(
+            "sync",
+            'true' if is_sync else 'false')
+
         xbmcplugin.addDirectoryItem(
             handle=int(sys.argv[1]), url=uri, listitem=listitem,
             isFolder=False)
+
+    xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 
 def download(url, params):
@@ -139,9 +158,17 @@ def download(url, params):
     with open(subtitle_path, 'wb') as fh:
         fh.write(resp.content)
 
-    return subtitle_path
+    listitem = xbmcgui.ListItem(label=subtitle_path)
+    xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=subtitle_path,
+                                listitem=listitem, isFolder=False)
+    xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
-# [
+#
+# main
+#
+
+# Example
+# sys.argv = [
 #     'plugin://service.subtitles.tusubtitulo/',
 #     '11',
 #     '?action=search&languages=English%2cSpanish&preferredlanguage=Spanish'
@@ -149,27 +176,19 @@ def download(url, params):
 
 # Parse args
 args = {k: v for (k, v) in urlparse.parse_qsl(sys.argv[2][1:])}
+
+# Handle some known arguments
 if args.get('languages', None):
     args['languages'] = args['languages'].split(',')
 
-def debug(*args, **kwargs):
-    print "================="
-    print repr(args)
-    print repr(kwargs)
-    print "================="
-
-debug(sys.argv)
-debug(**args)
+log(__name__, "Plugin called with: {}".format(repr(sys.argv)))
+log(__name__, "Parsed arguments: {}".format(repr(args)))
 
 action = args.pop('action')
+
 if action == 'search':
     search(**args)
 
 elif action == 'download':
     args['params'] = json.loads(args['params'])
-    subtitle_file = download(**args)
-
-    listitem = xbmcgui.ListItem(label=subtitle_file)
-    xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=subtitle_file, listitem=listitem, isFolder=False)
-
-xbmcplugin.endOfDirectory(int(sys.argv[1]))
+    download(**args)
