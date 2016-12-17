@@ -3,9 +3,8 @@
 import json
 import os
 import sys
-import re
-import shutil
 import urllib
+import urlparse
 
 import xbmc
 import xbmcvfs
@@ -13,33 +12,39 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
+
 __addon__ = xbmcaddon.Addon()
 __scriptid__ = __addon__.getAddonInfo('id')
 
-__cwd__ = xbmc.translatePath(__addon__.getAddonInfo('path')).decode("utf-8")
-__profile__ = xbmc.translatePath( __addon__.getAddonInfo('profile')).decode("utf-8")
+__cwd__ = xbmc.translatePath(
+    __addon__.getAddonInfo('path')).decode("utf-8")
+__profile__ = xbmc.translatePath(
+    __addon__.getAddonInfo('profile')).decode("utf-8")
 
-__resource__ = xbmc.translatePath(os.path.join(__cwd__, 'resources', 'lib')).decode("utf-8")
-__temp__ = xbmc.translatePath(os.path.join(__profile__, 'temp')).decode("utf-8")
+__resource__ = xbmc.translatePath(
+    os.path.join(__cwd__, 'resources', 'lib')).decode("utf-8")
+__temp__ = xbmc.translatePath(
+    os.path.join(__profile__, 'temp')).decode("utf-8")
 
 settings = xbmcaddon.Addon(id=__scriptid__)
 
 sys.path.append(__resource__)
 
-# Mi's
-import urlparse
-import unicodedata  # normalize
-import tusubtitulo
-
-import legacy
 
 __me__ = 'misubtitulo'
 
 
+# Mi's
+import tusubtitulo
+import legacy
+
+
+# For web pdb use this:
+# import web_pdb; web_pdb.set_trace()
+
 #
 # Utils
 #
-
 def log(name, msg):
     print("{id}.{name}: {msg}".format(id=__scriptid__, name=name, msg=msg))
 
@@ -77,7 +82,8 @@ def search(languages=[], preferredlanguage=None):
                 filename=filename))
             subs = api.get_subtitles_from_filename(filename)
         else:
-            log(__name__, "Search subtitles for show: {show}, season: {season}, "
+            log(__name__, "Search subtitles for show: {show}, "
+                          "season: {season}, "
                           "episode: {episode}".format(
                             show=item['tvshow'],
                             season=item['season'],
@@ -150,7 +156,7 @@ def download(url, params):
 
     resp = fetcher.fetch(url)
 
-    subtitle_path = os.path.join(__temp__, 'sub.srt')
+    subtitle_path = os.path.join(__temp__, 'sub.es.srt')
 
     if not xbmcvfs.exists(__temp__):
         xbmcvfs.mkdirs(__temp__)
