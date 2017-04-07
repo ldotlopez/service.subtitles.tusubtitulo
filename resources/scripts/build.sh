@@ -4,7 +4,8 @@ D="$(realpath -- "$0")"  # realpath of this script
 D="$(dirname -- "$D")"   # resources/scripts
 D="$(dirname -- "$D")"   # resources
 D="$(dirname -- "$D")"   # project path
-ME="$(basename -- "$D")" # name of the project
+# ME="$(basename -- "$D")" # name of the project
+ME="service.subtitles.misubtitulo" # name of the project
 BUILD="$D/build"         # build path
 
 # Delete previous build
