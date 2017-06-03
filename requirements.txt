@@ -1,1 +1,1 @@
-git+https://github.com/ldotlopez/tusubtitulo.git@0349bbff9751207977962d3ccdbfaefe8ade787f#egg=tusubtitulo
+git+https://github.com/ldotlopez/tusubtitulo.git@8ab73b340baaf408f14ace4e6fd5180e47428ac8#egg=tusubtitulo
